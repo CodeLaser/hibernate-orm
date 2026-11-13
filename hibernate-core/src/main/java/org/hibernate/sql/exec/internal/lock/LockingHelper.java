@@ -8,9 +8,7 @@ import jakarta.persistence.Timeout;
 import org.hibernate.LockMode;
 import org.hibernate.LockOptions;
 import org.hibernate.ScrollMode;
-import org.hibernate.Session;
 import org.hibernate.StaleObjectStateException;
-import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.engine.spi.CollectionKey;
 import org.hibernate.engine.spi.EntityKey;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
@@ -205,25 +203,6 @@ public class LockingHelper {
 				"Follow-on locking failed for entity '" + firstMissing.getEntityName()
 						+ "' on table '" + tableDetails.getTableName() + "': missing identifiers " + identifiers
 		);
-	}
-
-	/**
-	 * Lock a collection-table for a single entity.
-	 *
-	 * @param attributeMapping The plural attribute whose table needs locked.
-	 * @param lockMode The lock mode to apply
-	 * @param lockTimeout A lock timeout to apply, if one.
-	 * @param collectionToLock The collection to lock.
-	 *
-	 * @see Session#lock
-	 */
-	public static void lockCollectionTable(
-			PluralAttributeMapping attributeMapping,
-			LockMode lockMode,
-			Timeout lockTimeout,
-			PersistentCollection<?> collectionToLock,
-			ExecutionContext executionContext) {
-		lockCollectionTableByKey( attributeMapping, lockMode, lockTimeout, collectionToLock.getKey(), executionContext );
 	}
 
 	/// Locks existing collection-table rows using the database collection key,

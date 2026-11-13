@@ -2,8 +2,6 @@ package org.hibernate.envers.internal.entities;
 
 import java.util.HashMap;
 import java.util.Map;
-
-import org.hibernate.envers.configuration.internal.metadata.reader.ComponentAuditingData;
 import org.hibernate.envers.internal.entities.mapper.ExtendedPropertyMapper;
 import org.hibernate.envers.internal.entities.mapper.PropertyMapper;
 import org.hibernate.envers.internal.entities.mapper.id.IdMapper;
@@ -175,8 +173,8 @@ public class EntityConfiguration {
 		components.put( propertyName, ComponentDescription.many( propertyName, auditMiddleEntityName, middleIdData ) );
 	}
 
-	public void addToOneComponent(String propertyName, ComponentAuditingData auditingData) {
-		components.put( propertyName, ComponentDescription.one( propertyName, auditingData ) );
+	public void addToOneComponent(String propertyName) {
+		components.put( propertyName, ComponentDescription.one( propertyName) );
 	}
 
 	public boolean isRelation(String propertyName) {

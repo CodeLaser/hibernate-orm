@@ -1308,9 +1308,7 @@ public class InsertOrderingRCATest implements ServiceRegistryProducer {
 		NOT_EQUALS(" != "),
 		GREATER_THAN(" > "),
 		SMALLER_THAN(" < "),
-		CONTAINS(" contains "),
-		BEGINS_WITH(" begins with "),
-		ENDS_WITH(" ends with ");
+		CONTAINS(" contains ");
 
 		private String readable;
 
@@ -1347,8 +1345,7 @@ public class InsertOrderingRCATest implements ServiceRegistryProducer {
 
 	public enum ManipulationType {
 		MOVE_IT_BY_ABSOLUTE_TIME,
-		MOVE_IT_RELATIVE_TO_OTHER_TIME,
-		ABSOLUTE
+		MOVE_IT_RELATIVE_TO_OTHER_TIME
 	}
 
 	public enum LogicalOperator {

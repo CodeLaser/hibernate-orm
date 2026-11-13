@@ -183,7 +183,7 @@ public class StandardGraphBuilder implements GraphBuilder {
 					}
 					if ( prerequisiteNode != node && prerequisites.add( prerequisiteNode ) ) {
 						outgoing.get( prerequisiteNode ).add( GraphEdge.requiredOrder(
-								prerequisiteNode, node, prerequisiteNode, node, Util.EMPTY_SELECTABLES, null, edgeId++ ) );
+								node, prerequisiteNode, node, Util.EMPTY_SELECTABLES, null, edgeId++ ) );
 					}
 				}
 			}
@@ -299,7 +299,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 					}
 
 					outgoing.get( insert ).add( GraphEdge.requiredOrder(
-							insert,
 							update,
 							insert,
 							update,
@@ -354,7 +353,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 
 				final GraphEdge edge = breakable
 						? GraphEdge.nullPatchableFk(
-								parentInsert,
 								childInsert,
 								parentInsert,
 								childInsert,
@@ -364,7 +362,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 								edgeId++
 						)
 						: GraphEdge.requiredOrder(
-								parentInsert,
 								childInsert,
 								parentInsert,
 								childInsert,
@@ -399,7 +396,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				// Ordinal-based cycle breaking in CycleBreaker will prefer to keep forward-flowing edges
 				// Edge direction for DELETE: child -> parent (reversed!)
 				final GraphEdge edge = GraphEdge.requiredOrder(
-						parentDelete,
 						childDelete,
 						childDelete,
 						parentDelete,
@@ -438,7 +434,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				// INSERT parent must happen before UPDATE child
 				// Example: INSERT Product, then UPDATE Category SET product_id=1
 				final GraphEdge edge = GraphEdge.requiredOrder(
-						parentInsert,
 						childUpdate,
 						parentInsert,
 						childUpdate,
@@ -477,7 +472,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				// UPDATE must happen before DELETE
 				// Example: UPDATE Car SET engine_id=2, then DELETE Engine WHERE id=1
 				final GraphEdge edge = GraphEdge.requiredOrder(
-						delete,
 						update,
 						update,
 						delete,
@@ -536,7 +530,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				for ( GroupNode deleteNode : deleteNodes ) {
 					for ( GroupNode insertNode : insertNodes ) {
 						final GraphEdge edge = GraphEdge.preferredOrder(
-								null,
 								null,
 								deleteNode,
 								insertNode,
@@ -790,7 +783,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				}
 
 				final GraphEdge edge = GraphEdge.preferredOrder(
-						null,
 						insertNode,
 						releaser,
 						insertNode,
@@ -899,7 +891,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 				for ( GroupNode insertNode : insertNodes ) {
 					final GraphEdge edge = GraphEdge.preferredOrder(
 							null,
-							null,
 							deleteNode,
 							insertNode,
 							Util.EMPTY_SELECTABLES,
@@ -927,7 +918,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 			UniqueConstraint constraint,
 			long edgeId) {
 		return GraphEdge.requiredOrder(
-				null,
 				occupier,
 				releaser,
 				occupier,
@@ -946,7 +936,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 			long edgeId) {
 		if ( isNullPatchableUniqueConstraint( constraint ) ) {
 			return GraphEdge.nullPatchableUnique(
-					null,
 					keyNode,
 					from,
 					to,
@@ -958,7 +947,6 @@ public class StandardGraphBuilder implements GraphBuilder {
 		}
 
 		return GraphEdge.requiredOrder(
-				null,
 				keyNode,
 				from,
 				to,

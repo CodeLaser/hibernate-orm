@@ -3,7 +3,6 @@ package org.hibernate.tool.ant.test.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 
 public class ResourceUtil {
@@ -32,14 +31,6 @@ public class ResourceUtil {
 			result = resolveRelativeResourceLocation(testClass, resourceName);
 		}
 		return result;
-	}
-
-	public static File resolveResourceFile(Class<?> testClass, String resourceName) {
-		String path = testClass.getPackage().getName().replace('.', File.separatorChar);
-		URL resourceUrl = testClass.getClassLoader().getResource(path + File.separatorChar
-																+ resourceName);
-		assert resourceUrl != null;
-		return new File(resourceUrl.getFile());
 	}
 
 	private static String getRelativeResourcesRoot(Class<?> testClass) {

@@ -62,7 +62,6 @@ public class Decomposer implements DecompositionContext {
 	private Map<PersistentCollection<?>, CollectionMutationCompletion> pendingQueuedCollectionMutations;
 	private List<CollectionMutationCompletion> flushSuccessCompletions;
 	private long nextCollectionMutationId;
-	private boolean flushActive;
 
 	public Decomposer(SessionImplementor session) {
 		this.session = session;
@@ -77,7 +76,6 @@ public class Decomposer implements DecompositionContext {
 		// if this ever shows up as a hot spot (unlikely), we could move collecting these
 		// into the action queue proper as the actions are added and then pass into the
 		// Decomposer as arguments.
-		flushActive = true;
 		generatedIdentifierHandles = null;
 		pendingQueuedCollectionMutations = null;
 		flushSuccessCompletions = null;
@@ -136,7 +134,6 @@ public class Decomposer implements DecompositionContext {
 	/// End a flush operation - clear the tracking sets
 	public void endFlush() {
 		sealPendingQueuedCollectionMutations();
-		flushActive = false;
 		entitiesBeingInserted = null;
 		entitiesBeingDeleted = null;
 		updatedAttributesByDeletedEntity = null;
@@ -284,7 +281,7 @@ public class Decomposer implements DecompositionContext {
 
 		final var collection = resolvedMutation.collection();
 		final var completion = collection == null
-				? newCollectionMutation( null )
+				? newCollectionMutation( )
 				: takePendingQueuedCollectionMutation( collection );
 		completion.configure( resolvedMutation );
 		try {
@@ -320,7 +317,7 @@ public class Decomposer implements DecompositionContext {
 		}
 		var completion = pendingQueuedCollectionMutations.get( collection );
 		if ( completion == null ) {
-			completion = newCollectionMutation( collection );
+			completion = newCollectionMutation( );
 			completion.requireFlushSuccess();
 			pendingQueuedCollectionMutations.put( collection, completion );
 			if ( flushSuccessCompletions == null ) {
@@ -351,13 +348,12 @@ public class Decomposer implements DecompositionContext {
 				return pending;
 			}
 		}
-		return newCollectionMutation( collection );
+		return newCollectionMutation( );
 	}
 
-	private CollectionMutationCompletion newCollectionMutation(PersistentCollection<?> collection) {
+	private CollectionMutationCompletion newCollectionMutation() {
 		return new CollectionMutationCompletion(
-				new CollectionMutationId( nextCollectionMutationId++ ),
-				collection
+				new CollectionMutationId( nextCollectionMutationId++ )
 		);
 	}
 
