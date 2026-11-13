@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -90,35 +89,6 @@ public class JdbcUtil {
 		}
 	}
 
-	public static String toIdentifier(Object test, String string) {
-		Connection connection = CONNECTION_TABLE.get(test);
-		try {
-			DatabaseMetaData databaseMetaData = connection.getMetaData();
-			if (databaseMetaData.storesLowerCaseIdentifiers()) {
-				return string.toLowerCase();
-			} else if (databaseMetaData.storesUpperCaseIdentifiers()) {
-				return string.toUpperCase();
-			} else {
-				return string;
-			}
-		} catch (SQLException e) {
-			throw new RuntimeException(e);
-		}
-	}
-
-	public static boolean isDatabaseOnline(Object test) {
-		boolean result = false;
-		try {
-			Connection connection = createJdbcConnection(test);
-			result = connection.isValid(1);
-			connection.commit();
-			connection.close();
-		} catch (SQLException e) {
-			// this will happen when the connection cannot be created
-		}
-		return result;
-	}
-
 	/**
 	 * Establish a connection and execute create.sql.
 	 *
@@ -127,15 +97,6 @@ public class JdbcUtil {
 	public static void createDatabase(Object test) {
 		establishJdbcConnection(test);
 		executeSql(test, getSqls(test, "create.sql"));
-	}
-
-	/**
-	 * Using an established connection, execute data.sql.
-	 *
-	 * @param test residing in the package of data.sql resource.
-	 */
-	public static void populateDatabase(Object test) {
-		executeSql(test, getSqls(test, "data.sql"));
 	}
 
 	/**

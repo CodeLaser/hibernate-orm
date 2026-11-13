@@ -51,21 +51,6 @@ public interface CascadingAction<T> {
 			boolean isCascadeDeleteEnabled);
 
 	/**
-	 * @deprecated No longer called. Will be removed.
-	 */
-	@Deprecated(since = "7", forRemoval = true)
-	default void cascade(
-			EventSource session,
-			Object child,
-			String childEntityName,
-			T anything,
-			boolean isCascadeDeleteEnabled) {
-		cascade( session, child, childEntityName,
-				"", "", null,
-				anything, isCascadeDeleteEnabled );
-	}
-
-	/**
 	 * Given a collection, get an iterator of the children upon which the
 	 * current cascading action should be visited.
 	 *

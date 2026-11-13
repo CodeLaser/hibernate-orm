@@ -21,7 +21,6 @@ import org.hibernate.action.internal.EntityUpdateAction;
 import org.hibernate.action.internal.OrphanRemovalAction;
 import org.hibernate.action.queue.internal.audit.GraphAuditMutationCollector;
 import org.hibernate.action.queue.internal.constraint.ConstraintModel;
-import org.hibernate.action.queue.internal.constraint.DeferrableConstraintMode;
 import org.hibernate.action.queue.internal.plan.FlushPlan;
 import org.hibernate.action.queue.internal.support.GraphBasedActionQueueFactory;
 import org.hibernate.action.spi.Executable;
@@ -168,14 +167,6 @@ public class GraphBasedActionQueue implements ActionQueue {
 		}
 		deletions.clear();
 		flushCoordinator.getDecomposer().clear();
-	}
-
-	public DeferrableConstraintMode getDeferrableConstraintMode() {
-		return flushCoordinator.getDeferrableConstraintMode();
-	}
-
-	public void setDeferrableConstraintMode(DeferrableConstraintMode deferrableConstraintMode) {
-		flushCoordinator.setDeferrableConstraintMode( deferrableConstraintMode );
 	}
 
 	public GraphAuditMutationCollector getAuditMutationCollector() {
@@ -1053,31 +1044,6 @@ public class GraphBasedActionQueue implements ActionQueue {
 			}
 			session.getFactory().getCache().getTimestampsCache().preInvalidate(spaces, session);
 		}
-	}
-
-
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-	// Testing/debugging
-	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-	/// Get all pending executable actions (for debugging/testing).
-	/// Graph-native prepared collection mutations are intentionally not exposed as executables.
-	///
-	/// @return list of pending actions
-	public List<Executable> getPendingActions() {
-		var list = new ArrayList<Executable>();
-		list.addAll(orphanRemovals);
-		list.addAll(insertions);
-		list.addAll(updates);
-		list.addAll(deletions);
-		return list;
-	}
-
-	/// Get the FlushCoordinator (for testing/debugging).
-	///
-	/// @return the flush coordinator
-	public FlushCoordinator getFlushCoordinator() {
-		return flushCoordinator;
 	}
 
 	/// Builds the currently queued flush plan without executing it.

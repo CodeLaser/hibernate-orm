@@ -85,24 +85,17 @@ public enum SimpleTypeInterpretation {
 
 
 	private final Class<?> javaType;
-	private final SimpleTypeInterpretation objectForm;
 
 	SimpleTypeInterpretation(Class<?> javaType) {
 		this.javaType = javaType;
-		this.objectForm = this;
 	}
 
 	SimpleTypeInterpretation(Class<?> javaType, SimpleTypeInterpretation objectForm) {
 		this.javaType = javaType;
-		this.objectForm = objectForm;
 	}
 
 	public Class<?> getJavaType() {
 		return javaType;
-	}
-
-	public SimpleTypeInterpretation getObjectForm() {
-		return objectForm;
 	}
 
 	public static SimpleTypeInterpretation interpret(String name) {

@@ -142,11 +142,10 @@ public class GraphTestUtils {
 			Constraint constraint,
 			long stableId) {
 		if ( !breakable ) {
-			return GraphEdge.requiredOrder( targetNode, keyNode, from, to, columnsToNull, constraint, stableId );
+			return GraphEdge.requiredOrder( keyNode, from, to, columnsToNull, constraint, stableId );
 		}
 		if ( constraint instanceof ForeignKey foreignKey ) {
 			return GraphEdge.nullPatchableFk(
-					targetNode,
 					keyNode,
 					from,
 					to,
@@ -158,7 +157,6 @@ public class GraphTestUtils {
 		}
 		if ( constraint instanceof UniqueConstraint uniqueConstraint ) {
 			return GraphEdge.nullPatchableUnique(
-					targetNode,
 					keyNode,
 					from,
 					to,
@@ -168,7 +166,7 @@ public class GraphTestUtils {
 					stableId
 			);
 		}
-		return GraphEdge.preferredOrder( targetNode, keyNode, from, to, columnsToNull, constraint, breakCost, stableId );
+		return GraphEdge.preferredOrder( keyNode, from, to, columnsToNull, constraint, breakCost, stableId );
 	}
 
 	/// Create a simple breakable edge with default parameters
@@ -197,7 +195,6 @@ public class GraphTestUtils {
 
 	public static GraphEdge createPreferredOrderEdge(GroupNode from, GroupNode to) {
 		return GraphEdge.preferredOrder(
-				from,
 				to,
 				from,
 				to,
@@ -221,7 +218,7 @@ public class GraphTestUtils {
 				selectable( to.group().tableExpression(), "id" ),
 				true
 		);
-		return GraphEdge.nullPatchableFk( to, from, from, to, columns, fk, breakCost, stableId );
+		return GraphEdge.nullPatchableFk( from, from, to, columns, fk, breakCost, stableId );
 	}
 
 	public static GraphEdge createNullPatchableUniqueEdge(GroupNode from, GroupNode to, int breakCost) {
@@ -231,7 +228,7 @@ public class GraphTestUtils {
 	public static GraphEdge createNullPatchableUniqueEdge(GroupNode from, GroupNode to, int breakCost, long stableId) {
 		final SelectableMappings columns = selectable( from.group().tableExpression(), "unique_col" );
 		final UniqueConstraint uniqueConstraint = uniqueConstraint( from, columns );
-		return GraphEdge.nullPatchableUnique( to, from, from, to, columns, uniqueConstraint, breakCost, stableId );
+		return GraphEdge.nullPatchableUnique( from, from, to, columns, uniqueConstraint, breakCost, stableId );
 	}
 
 	public static GraphEdge createLegacyRequiredUniqueEdge(GroupNode from, GroupNode to) {
@@ -241,7 +238,7 @@ public class GraphTestUtils {
 	public static GraphEdge createLegacyRequiredUniqueEdge(GroupNode from, GroupNode to, long stableId) {
 		final SelectableMappings columns = selectable( from.group().tableExpression(), "unique_col" );
 		final UniqueConstraint uniqueConstraint = uniqueConstraint( from, columns );
-		return GraphEdge.requiredOrder( to, from, from, to, columns, uniqueConstraint, stableId );
+		return GraphEdge.requiredOrder( from, from, to, columns, uniqueConstraint, stableId );
 	}
 
 	public static GraphEdge createLegacyRequiredFkEdge(GroupNode from, GroupNode to) {
@@ -253,7 +250,7 @@ public class GraphTestUtils {
 				selectable( to.group().tableExpression(), "id" ),
 				false
 		);
-		return GraphEdge.requiredOrder( to, from, from, to, columns, fk, System.nanoTime() );
+		return GraphEdge.requiredOrder( from, from, to, columns, fk, System.nanoTime() );
 	}
 
 	private static ForeignKey foreignKey(

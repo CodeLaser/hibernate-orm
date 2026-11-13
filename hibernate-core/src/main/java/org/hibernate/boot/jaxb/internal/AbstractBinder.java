@@ -134,10 +134,6 @@ public abstract class AbstractBinder<T> implements Binder<T> {
 		return staxFactory;
 	}
 
-	protected StartElement seekRootElementStartEvent(XMLEventReader staxEventReader, Origin origin) {
-		return seekRootElement( staxEventReader, origin ).startElement();
-	}
-
 	private RootElement seekRootElement(XMLEventReader staxEventReader, Origin origin) {
 		XMLEvent rootElementStartEvent;
 		boolean declaresEntities = false;

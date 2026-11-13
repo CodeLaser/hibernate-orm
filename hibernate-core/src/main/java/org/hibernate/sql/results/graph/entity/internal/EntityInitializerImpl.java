@@ -2349,25 +2349,6 @@ public class EntityInitializerImpl
 				+ toLoggableString( getNavigablePath() ) + ")";
 	}
 
-	//#########################
-	// For Hibernate Reactive
-	//#########################
-	protected EntityPersister getRootEntityDescriptor() {
-		return rootEntityDescriptor;
-	}
-
-	protected @Nullable Initializer<?>[][] getEagerSubInitializers() {
-		return eagerSubInitializers;
-	}
-
-	protected @Nullable Initializer<?>[][] getCollectionContainingSubInitializers() {
-		return collectionContainingSubInitializers;
-	}
-
-	protected ImmutableBitSet[] getLazySets() {
-		return lazySets;
-	}
-
 	public boolean isHasLazyInitializingSubAssemblers() {
 		return hasLazyInitializingSubAssemblers;
 	}

@@ -1,6 +1,5 @@
 package org.hibernate.envers.internal.entities;
 
-import org.hibernate.envers.configuration.internal.metadata.reader.ComponentAuditingData;
 import org.hibernate.envers.internal.entities.mapper.relation.MiddleIdData;
 
 /**
@@ -12,26 +11,23 @@ public class ComponentDescription {
 	private final String propertyName;
 	private final String auditMiddleEntityName;
 	private final MiddleIdData middleIdData;
-	private final ComponentAuditingData auditingData;
 
 	private ComponentDescription(ComponentType type,
 			String propertyName,
 			String auditMiddleEntityName,
-			MiddleIdData middleIdData,
-			ComponentAuditingData componentAuditingData) {
+			MiddleIdData middleIdData) {
 		this.type = type;
 		this.propertyName = propertyName;
 		this.auditMiddleEntityName = auditMiddleEntityName;
 		this.middleIdData = middleIdData;
-		this.auditingData = componentAuditingData;
 	}
 
 	public static ComponentDescription many(String propertyName, String auditMiddleEntityName, MiddleIdData middleIdData) {
-		return new ComponentDescription( ComponentType.MANY, propertyName, auditMiddleEntityName, middleIdData, null );
+		return new ComponentDescription( ComponentType.MANY, propertyName, auditMiddleEntityName, middleIdData);
 	}
 
-	public static ComponentDescription one(String propertyName, ComponentAuditingData componentAuditingData) {
-		return new ComponentDescription( ComponentType.ONE, propertyName, null, null, componentAuditingData );
+	public static ComponentDescription one(String propertyName) {
+		return new ComponentDescription( ComponentType.ONE, propertyName, null, null);
 	}
 
 	public ComponentType getType() {
@@ -48,10 +44,6 @@ public class ComponentDescription {
 
 	public MiddleIdData getMiddleIdData() {
 		return middleIdData;
-	}
-
-	public ComponentAuditingData getAuditingData() {
-		return auditingData;
 	}
 
 	public enum ComponentType {

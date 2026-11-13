@@ -532,12 +532,6 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 		sqlBuffer.insert( 0, prefixBuffer );
 	}
 
-	// For Blaze-Persistence until its function rendering code doesn't depend on SQL fragments anymore
-	@Internal
-	public StringBuilder getSqlBuffer() {
-		return sqlBuffer;
-	}
-
 	private void cleanup() {
 		this.jdbcParameterBindings = null;
 		this.lockOptions = null;

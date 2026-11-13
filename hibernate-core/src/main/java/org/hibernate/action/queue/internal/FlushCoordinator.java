@@ -34,7 +34,6 @@ import org.hibernate.persister.entity.EntityPersister;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -120,16 +119,6 @@ public class FlushCoordinator {
 	/// @return the decomposer
 	public Decomposer getDecomposer() {
 		return decomposer;
-	}
-
-	public DeferrableConstraintMode getDeferrableConstraintMode() {
-		return deferrableConstraintMode;
-	}
-
-	public void setDeferrableConstraintMode(DeferrableConstraintMode deferrableConstraintMode) {
-		this.deferrableConstraintMode = deferrableConstraintMode == null
-				? DeferrableConstraintMode.DEFAULT
-				: deferrableConstraintMode;
 	}
 
 	public void executeInsertFlush(List<AbstractEntityInsertAction> insertActions) {
@@ -747,21 +736,10 @@ public class FlushCoordinator {
 		newlyManagedEntities.clear();
 	}
 
-	/// Composite key for grouping operations by shape and ordinalBase.
-	private record CompositeOperationGroupKey(
-			StatementShapeKey shapeKey,
-			int ordinalBase) implements OperationGroupKey {
-	}
-
 	/// Operation group key that includes ordinal information for self-referential tables.
 	private record OrdinalAwareOperationGroupKey(
 			StatementShapeKey shapeKey,
 			Integer ordinalBase) implements OperationGroupKey {
-	}
-
-
-	public void serialize(ObjectOutputStream oos) throws IOException {
-		decomposer.serialize(oos);
 	}
 
 	public static FlushCoordinator deserialize(

@@ -25,16 +25,12 @@ import org.hibernate.dialect.sql.ast.spi.TableJoinRenderingSupport;
 import org.hibernate.dialect.sql.ast.spi.TableReferenceAliasContext;
 import org.hibernate.dialect.sql.ast.spi.ValuesTableRenderingStyle;
 import org.hibernate.query.SortDirection;
-import org.hibernate.metamodel.mapping.EntityVersionMapping;
 import org.hibernate.dialect.sql.ast.spi.AbstractSqlAstTranslator;
 import org.hibernate.sql.ast.spi.Statement;
 import org.hibernate.dialect.sql.ast.spi.SqlAstTranslationRequest;
 import org.hibernate.sql.ast.spi.query.delete.DeleteStatement;
 import org.hibernate.sql.ast.spi.query.expression.ColumnReference;
 import org.hibernate.sql.ast.spi.query.expression.Expression;
-import org.hibernate.sql.ast.spi.query.from.FromClause;
-import org.hibernate.sql.ast.spi.query.insert.InsertSelectStatement;
-import org.hibernate.sql.ast.spi.query.insert.Values;
 import org.hibernate.sql.ast.spi.query.select.QueryPart;
 import org.hibernate.sql.ast.spi.query.select.SelectClause;
 import org.hibernate.sql.ast.spi.query.select.SelectStatement;
@@ -51,14 +47,6 @@ import org.hibernate.sql.exec.spi.JdbcOperation;
 public class ExampleSqlAstTranslator<T extends JdbcOperation> extends AbstractSqlAstTranslator<T> {
 	public ExampleSqlAstTranslator(SqlAstTranslationRequest<? extends Statement, T> request) {
 		super( request );
-	}
-
-	public EntityVersionMapping versionSeedMapping(Expression expression) {
-		return getVersionSeedMapping( expression );
-	}
-
-	public boolean recognizesParameterInterpretation(Expression expression) {
-		return isParameterInterpretation( expression );
 	}
 
 	@Override
@@ -234,29 +222,5 @@ public class ExampleSqlAstTranslator<T extends JdbcOperation> extends AbstractSq
 	@Override
 	protected void renderAssignmentColumn(ColumnReference column) {
 		super.renderAssignmentColumn( column );
-	}
-
-	private void renderStandardMutationPlans(
-			DeleteStatement deleteStatement,
-			UpdateStatement updateStatement,
-			InsertSelectStatement insertStatement,
-			List<Values> valuesList) {
-		renderDeleteStatementDirect( deleteStatement );
-		renderDeleteStatementWithJoinEmulation( deleteStatement, null );
-		renderUpdateStatementDirect( updateStatement );
-		renderUpdateStatementAsScalarSubquery( updateStatement );
-		renderUpdateStatementAsMerge( updateStatement );
-		renderUpdateStatementAsInlineView( updateStatement );
-		renderUpdateStatementAsTupleSet( updateStatement );
-		renderInsertStatementAsMerge( insertStatement );
-		renderValuesListAsSelectUnion( valuesList );
-	}
-
-	private boolean renderFromClauseSpacesIfPresent(FromClause fromClause) {
-		if ( hasFrom( fromClause ) ) {
-			renderFromClauseSpaces( fromClause );
-			return true;
-		}
-		return false;
 	}
 }

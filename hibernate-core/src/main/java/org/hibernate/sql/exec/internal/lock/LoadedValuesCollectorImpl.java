@@ -20,10 +20,6 @@ public class LoadedValuesCollectorImpl implements LoadedValuesCollector {
 	private List<LoadedValuesCollector.LoadedEntityRegistration> entitiesToLock;
 	private List<LoadedValuesCollector.LoadedCollectionRegistration> collectionsToLock;
 
-	public LoadedValuesCollectorImpl(Collection<NavigablePath> pathsToLock) {
-		this( pathsToLock, false );
-	}
-
 	public LoadedValuesCollectorImpl(Collection<NavigablePath> pathsToLock, boolean deferForceIncrement) {
 		this.pathsToLock = pathsToLock;
 		directLockingCompletion = deferForceIncrement ? new DirectLockingCompletion() : null;

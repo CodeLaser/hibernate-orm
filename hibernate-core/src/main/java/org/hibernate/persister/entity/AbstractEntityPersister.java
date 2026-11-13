@@ -265,7 +265,6 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.unmodifiableList;
-import static java.util.function.Function.identity;
 import static org.hibernate.engine.internal.CacheHelper.fromSharedCache;
 import static org.hibernate.engine.internal.CacheHelper.readingFromCache;
 import static org.hibernate.engine.internal.ManagedTypeHelper.asPersistentAttributeInterceptable;
@@ -528,20 +527,6 @@ public abstract class AbstractEntityPersister
 	private List<UniqueKeyEntry> uniqueKeyEntries = null; //lazily initialized
 	@Nullable
 	private ConcurrentHashMap<String,SingleIdArrayLoadPlan> nonLazyPropertyLoadPlansByName;
-
-	public AbstractEntityPersister(
-			@Nonnull final PersistentClass persistentClass,
-			@Nullable final EntityDataAccess cacheAccessStrategy,
-			@Nullable final NaturalIdDataAccess naturalIdRegionAccessStrategy,
-			@Nonnull final RuntimeModelCreationContext creationContext) throws HibernateException {
-		this(
-				persistentClass,
-				cacheAccessStrategy,
-				naturalIdRegionAccessStrategy,
-				creationContext,
-				identity()
-		);
-	}
 
 	protected AbstractEntityPersister(
 			@Nonnull final PersistentClass persistentClass,
@@ -2027,24 +2012,6 @@ public abstract class AbstractEntityPersister
 	@Nullable
 	private Object copiedLazyPropertyValue(int index, @Nullable Object propValue) {
 		return lazyPropertyTypes[index].deepCopy( propValue, factory );
-	}
-
-	/**
-	 * Used by Hibernate Reactive
-	 * @deprecated
-	 */
-	@Deprecated(since = "7.2", forRemoval = true)
-	protected boolean initializeLazyProperty(
-			@Nonnull final String fieldName,
-			@Nonnull final Object entity,
-			@Nonnull final EntityEntry entry,
-			@Nonnull final LazyAttributeDescriptor fetchGroupAttributeDescriptor,
-			@Nullable final Object propValue) {
-		final String name = fetchGroupAttributeDescriptor.getName();
-		initializeLazyProperty( entity, entry, propValue,
-				getPropertyIndex( name ),
-				fetchGroupAttributeDescriptor.getType() );
-		return fieldName.equals( name );
 	}
 
 	// Used by Hibernate Reactive
@@ -4779,17 +4746,6 @@ public abstract class AbstractEntityPersister
 			logDirtyProperties( modified );
 			return modified;
 		}
-	}
-
-	/**
-	 * Which properties appear in the SQL update?
-	 * (Initialized, updateable ones!)
-	 */
-	@Nonnull
-	public boolean[] getPropertyUpdateability(@Nonnull Object entity) {
-		return hasUninitializedLazyProperties( entity )
-				? getNonLazyPropertyUpdateability()
-				: getPropertyUpdateability();
 	}
 
 	@Override

@@ -79,7 +79,6 @@ import org.hibernate.boot.jaxb.mapping.spi.JaxbVersionImpl;
 import org.hibernate.boot.models.HibernateAnnotations;
 import org.hibernate.boot.models.JpaAnnotations;
 import org.hibernate.boot.models.JpaEventListenerStyle;
-import org.hibernate.boot.models.XmlAnnotations;
 import org.hibernate.boot.models.annotations.internal.AssociationOverrideJpaAnnotation;
 import org.hibernate.boot.models.annotations.internal.AssociationOverridesJpaAnnotation;
 import org.hibernate.boot.models.annotations.internal.AuditedTableAnnotation;
@@ -140,7 +139,6 @@ import org.hibernate.boot.models.annotations.internal.SubselectAnnotation;
 import org.hibernate.boot.models.annotations.internal.SynchronizeAnnotation;
 import org.hibernate.boot.models.annotations.internal.TableGeneratorJpaAnnotation;
 import org.hibernate.boot.models.annotations.internal.TableJpaAnnotation;
-import org.hibernate.boot.models.annotations.internal.TargetXmlAnnotation;
 import org.hibernate.boot.models.annotations.internal.HistoryPartitioningAnnotation;
 import org.hibernate.boot.models.annotations.internal.HistoryTableAnnotation;
 import org.hibernate.boot.models.annotations.internal.TemporalAnnotation;
@@ -510,17 +508,6 @@ public class XmlAnnotationHelper {
 		if ( !cascadeTypes.isEmpty() ) {
 			cascadeable.cascade( cascadeTypes.toArray(CascadeType[]::new) );
 		}
-	}
-
-	public static void applyTargetClass(
-			String name,
-			MutableMemberDetails memberDetails,
-			XmlDocumentContext xmlDocumentContext) {
-		final TargetXmlAnnotation targetAnn = (TargetXmlAnnotation) memberDetails.applyAnnotationUsage(
-				XmlAnnotations.TARGET,
-				xmlDocumentContext.getModelBuildingContext()
-		);
-		targetAnn.value( name );
 	}
 
 	@SuppressWarnings("deprecation")
@@ -1293,10 +1280,6 @@ public class XmlAnnotationHelper {
 		if ( simpleInterpretation != null ) {
 			return classDetailsRegistry.resolveClassDetails( simpleInterpretation.getJavaType().getName() );
 		}
-		return resolveJavaType( null, value, classDetailsRegistry );
-	}
-
-	public static ClassDetails resolveJavaType(String value, ClassDetailsRegistry classDetailsRegistry) {
 		return resolveJavaType( null, value, classDetailsRegistry );
 	}
 

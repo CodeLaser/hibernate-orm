@@ -51,15 +51,11 @@ public class EnumeratedAndGenerics2Test {
 		);
 	}
 
-	public interface EnumBase {
-		String name();
-	}
-
-	public enum TestEnum implements EnumBase {
+	public enum TestEnum {
 		FOO, BAR
 	}
 
-	public enum AnotherTestEnum implements EnumBase {
+	public enum AnotherTestEnum {
 		ONE, TWO
 	}
 

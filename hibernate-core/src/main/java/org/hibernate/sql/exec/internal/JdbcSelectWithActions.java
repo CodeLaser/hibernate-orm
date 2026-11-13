@@ -67,12 +67,6 @@ public class JdbcSelectWithActions implements JdbcOperationQuery, JdbcSelect {
 		this.postActions = postActions;
 	}
 
-	public JdbcSelectWithActions(
-			JdbcOperationQuerySelect primaryAction,
-			LoadedValuesCollectorFactory loadedValuesCollectorFactory) {
-		this( primaryAction, loadedValuesCollectorFactory, null, null );
-	}
-
 	@Override
 	public JdbcValuesMappingProducer getJdbcValuesMappingProducer() {
 		return primaryOperation.getJdbcValuesMappingProducer();

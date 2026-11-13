@@ -159,29 +159,6 @@ public final class FlushProcessingContext implements CollectionFlushActionTracke
 		return entry != null && entry.wasReachedDuringFlush();
 	}
 
-	/// Marks the collection as reachable from a flushed entity.
-	///
-	/// @param collection The collection instance
-	public void markCollectionReached(PersistentCollection<?> collection) {
-		final var entry = session.getPersistenceContextInternal().getCollectionEntry( collection );
-		if ( entry != null ) {
-			entry.markReachedDuringFlush();
-		}
-	}
-
-	/// Marks the collection as processed by collection reachability handling.
-	///
-	/// Duplicate processing indicates inconsistent graph traversal and results in an assertion
-	/// failure, matching the previous {@link org.hibernate.engine.spi.CollectionEntry} guard.
-	///
-	/// @param collection The collection instance
-	public void markCollectionProcessed(PersistentCollection<?> collection) {
-		final var entry = session.getPersistenceContextInternal().getCollectionEntry( collection );
-		if ( entry != null ) {
-			entry.markProcessedDuringFlush();
-		}
-	}
-
 	/// Records a logical collection create mutation for later queue-neutral registration.
 	///
 	/// @param collection The collection instance

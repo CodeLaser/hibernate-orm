@@ -174,7 +174,7 @@ public class JaxbCfgProcessor {
 	private Schema resolveLocalSchema(String schemaName) {
 		final URL url = classLoaderService.locateResource( schemaName );
 		if ( url == null ) {
-			throw new XsdException( "Unable to locate schema [" + schemaName + "] via classpath", schemaName );
+			throw new XsdException( "Unable to locate schema [" + schemaName + "] via classpath");
 		}
 		try {
 			final var schemaStream = url.openStream();
@@ -183,7 +183,7 @@ public class JaxbCfgProcessor {
 						.newSchema( new StreamSource( schemaStream ) );
 			}
 			catch ( SAXException e ) {
-				throw new XsdException( "Unable to load schema [" + schemaName + "]", e, schemaName );
+				throw new XsdException( "Unable to load schema [" + schemaName + "]", e);
 			}
 			finally {
 				try {
@@ -195,7 +195,7 @@ public class JaxbCfgProcessor {
 			}
 		}
 		catch ( IOException e ) {
-			throw new XsdException( "Stream error handling schema url [" + url.toExternalForm() + "]", schemaName );
+			throw new XsdException( "Stream error handling schema url [" + url.toExternalForm() + "]");
 		}
 	}
 

@@ -134,7 +134,7 @@ public final class ComponentMetadataGenerator extends AbstractMetadataGenerator 
 
 		if ( !firstPass ) {
 			final EntityConfiguration owningEntityConfiguration = getAuditedEntityConfigurations().get( entityName );
-			owningEntityConfiguration.addToOneComponent( propertyAuditingData.getName(), componentAuditingData );
+			owningEntityConfiguration.addToOneComponent( propertyAuditingData.getName());
 		}
 	}
 
