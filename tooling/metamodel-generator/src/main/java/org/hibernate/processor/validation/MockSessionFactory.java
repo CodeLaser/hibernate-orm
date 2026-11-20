@@ -5,6 +5,7 @@ import org.hibernate.Internal;
 import jakarta.annotation.Nonnull;
 import jakarta.persistence.metamodel.Bindable;
 import jakarta.annotation.Nullable;
+
 import org.hibernate.CustomEntityDirtinessStrategy;
 import org.hibernate.EntityNameResolver;
 import org.hibernate.Internal;
@@ -337,8 +338,6 @@ public abstract class MockSessionFactory
 
 	abstract boolean isFieldDefined(String qualifiedClassName, String fieldName);
 
-	abstract boolean isConstructorDefined(String qualifiedClassName, List<Type> argumentTypes);
-
 	abstract Type propertyType(String typeName, String propertyPath);
 
 	protected abstract boolean isSubtype(String entityName, String subtypeEntityName);
@@ -514,20 +513,6 @@ public abstract class MockSessionFactory
 	@Override
 	public RootGraphImplementor<?> findEntityGraphByName(@Nonnull String s) {
 		throw new UnsupportedOperationException("operation not supported");
-	}
-
-	static Class<?> toPrimitiveClass(Class<?> type) {
-		return switch ( type.getName() ) {
-			case "java.lang.Boolean" -> boolean.class;
-			case "java.lang.Character" -> char.class;
-			case "java.lang.Integer" -> int.class;
-			case "java.lang.Short" -> short.class;
-			case "java.lang.Byte" -> byte.class;
-			case "java.lang.Long" -> long.class;
-			case "java.lang.Float" -> float.class;
-			case "java.lang.Double" -> double.class;
-			default -> Object.class;
-		};
 	}
 
 	@Override
@@ -744,6 +729,7 @@ public abstract class MockSessionFactory
 	}
 
 	@Override
+	@Nonnull
 	public Dialect getDialect() {
 		return getJdbcServices().getDialect();
 	}
@@ -838,6 +824,7 @@ public abstract class MockSessionFactory
 		}
 
 		@Override
+		@Nonnull
 		public JpaMetamodelImplementor getJpaMetamodel() {
 			return new MockJpaMetamodelImpl();
 		}
@@ -855,26 +842,31 @@ public abstract class MockSessionFactory
 	}
 
 	@Override
+	@Nonnull
 	public SessionFactoryImplementor getSessionFactory() {
 		return MockSessionFactory.this;
 	}
 
 	@Override
+	@Nonnull
 	public BootstrapContext getBootstrapContext() {
 		return this;
 	}
 
 	@Override
+	@Nonnull
 	public MetadataImplementor getBootModel() {
 		return bootModel;
 	}
 
 	@Override
+	@Nonnull
 	public MappingMetamodelImplementor getDomainModel() {
 		return metamodel;
 	}
 
 	@Override
+	@Nonnull
 	public SqmFunctionRegistry getFunctionRegistry() {
 		return functionRegistry;
 	}
@@ -897,6 +889,7 @@ public abstract class MockSessionFactory
 	}
 
 	@Override
+	@Nonnull
 	public Map<String, Object> getSettings() {
 		return emptyMap();
 	}
@@ -1308,7 +1301,7 @@ public abstract class MockSessionFactory
 
 	private <T> EmbeddableTypeImpl<T> createEmbeddableDomainType(String entityName, CompositeType compositeType, ManagedDomainType<T> owner) {
 		final var javaType = new UnknownBasicJavaType<T>(null, compositeType.getReturnedClassName());
-		return new EmbeddableTypeImpl<>( javaType, null, null, true, metamodel.getJpaMetamodel() ) {
+		return new EmbeddableTypeImpl<>( javaType, null, null, metamodel.getJpaMetamodel() ) {
 			@Override
 			public @Nullable SqmPersistentAttribute<T, ?> findAttribute(@Nonnull String name) {
 				return createAttribute(

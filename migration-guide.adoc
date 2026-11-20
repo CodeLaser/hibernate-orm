@@ -68,12 +68,89 @@ The deprecated `PersistenceContext.reentrantSafeEntityEntries()` method has been
 
 This section describes changes in behavior that applications should be aware of.
 
+[[timezone-storage-property-access]]
+=== Timezone column storage with property access
+
+`@TimeZoneStorage(COLUMN)` on property-access attributes now maps and persists both the temporal value and UTC offset.
+Previously, these columns could be omitted and values silently lost for `OffsetDateTime`, `OffsetTime`, and `ZonedDateTime`.
+Applications affected by this bug must ensure the required columns exist before upgrading.
+Values that were never stored by earlier versions cannot be recovered automatically.
+
+[[oracle-nested-xml-nulls]]
+=== Oracle nested XML null extraction
+
+Nested XML aggregate projections and null predicates now preserve SQL nulls when the extracted child content is absent.
+Previously, the extraction expression manufactured an empty XML root, so a projection could return an empty embeddable
+and an `is null` predicate could incorrectly exclude a null child or null parent payload.
+Stored XML is unchanged and no data migration is required.
+Explicitly present aggregates with all-null members retain their existing behavior.
+
 [[xml-validation]]
 === XML mapping validation
 
 XML mapping documents are now validated against their schema by default, as documented for `hibernate.validate_xml`.
 Previously, validation was disabled when this setting was absent, allowing invalid attributes to be silently ignored.
 Applications with invalid `orm.xml` or `hbm.xml` documents must correct their mappings or explicitly set `hibernate.validate_xml=false` to disable validation.
+
+[[callable-embeddable-types]]
+=== Embeddable types in procedure and function calls
+
+Registering a procedure parameter or function return with an embeddable `Type` now resolves the embeddable's
+single-column aggregate mapping (such as a struct), matching registration by Java class.
+An embeddable without such a mapping is rejected with an `IllegalArgumentException` at registration,
+since multi-column callable parameters and returns are not supported. Previously the registration was accepted.
+
+[[column-on-composite-attribute]]
+=== `@Column` on an embedded attribute
+
+A `@Column` annotation placed directly on an embedded attribute, that is, on a field or property whose type is
+an `@Embeddable` class, or which is mapped with `@CompositeType`, is now rejected with an `AnnotationException`
+when the metadata is built. For example, the following mapping is rejected:
+
+[source,java]
+----
+@Embedded
+@Column(name = "home_address")
+Address homeAddress;
+----
+
+Previously the annotation was silently ignored, and the columns were named after the fields of the embeddable class.
+Such mappings must use `@AttributeOverride` to specify the column mapped by each field of the embeddable class.
+
+[[cache-on-attribute]]
+=== `@Cache` on an attribute which is not a collection
+
+A `@Cache` annotation on a field or property which is not a collection, for example, on a `@ManyToOne` association,
+is now rejected with an `AnnotationException` when the metadata is built. Previously the annotation was silently ignored.
+To cache the entity which is the target of an association, annotate its root entity class `@Cache`.
+
+[[table-on-abstract-table-per-class-entity]]
+=== `@Table` on an abstract entity class in a `TABLE_PER_CLASS` hierarchy
+
+In a `TABLE_PER_CLASS` hierarchy, an abstract entity class with entity subclasses is not mapped to a table.
+A `@Table` annotation on such a class is now rejected with an `AnnotationException` when the metadata is built.
+Previously the annotation was silently ignored, along with any indexes or constraints it declared.
+Indexes and constraints should instead be declared by the `@Table` annotation of each concrete subclass.
+
+[[on-delete-on-entity-class]]
+=== `@OnDelete` on an entity class which is not a `JOINED` subclass
+
+An `@OnDelete` annotation on an entity class which is not a subclass in a `JOINED` hierarchy is now rejected with
+an `AnnotationException` when the metadata is built. Previously the annotation was silently ignored.
+
+[[id-on-entity-subclass]]
+=== `@Id` on an entity subclass
+
+The identifier of an entity hierarchy is declared by the root entity class or by one of its mapped superclasses.
+An `@Id` or `@EmbeddedId` annotation on a field or property of an entity subclass, or of a mapped superclass which
+extends an entity class, is now rejected with an `AnnotationException` when the metadata is built.
+
+Previously, if the annotated attribute had the same name as the identifier of the root entity, the annotation was
+silently ignored, along with any `@GeneratedValue` or `@Column` annotation of the attribute.
+The redundant annotation should be removed from the subclass.
+
+An `@Id` annotation on a getter of the subclass did have the side effect of switching the subclass to property-based
+access. A subclass which depends on this should now be annotated `@Access(AccessType.PROPERTY)`.
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // XSD changes
@@ -94,6 +171,20 @@ This section describes changes in XML Schema Descriptors
 
 This section describes changes to DDL generated by the schema export tooling.
 Such changes typically do not impact programs using a relational schema managed externally to Hibernate.
+
+[[sqlserver-time-precision]]
+=== SQL Server TIME precision
+
+SQL Server `TIME` columns now honor explicitly declared fractional-second precision, including
+`@Column(secondPrecision = 0)` and the deprecated `@FractionalSeconds` annotation.
+For example, precision three generates `time(3)` instead of plain `time`.
+Omitting precision continues to generate `time`, retaining SQL Server's seven-digit default.
+
+Existing schemas are not automatically narrowed. If an application previously requested a lower
+precision but its column was created as plain `time`, review the physical schema before migrating.
+Reducing its precision may change stored values, including values near a second or midnight boundary.
+Declare precision seven or retain an appropriate explicit column definition when that existing storage
+precision is intended.
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

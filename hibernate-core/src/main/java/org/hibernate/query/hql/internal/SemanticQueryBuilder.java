@@ -43,6 +43,7 @@ import org.hibernate.metamodel.CollectionClassification;
 import org.hibernate.metamodel.mapping.CollectionPart;
 import org.hibernate.metamodel.mapping.internal.AnyKeyPart;
 import org.hibernate.metamodel.model.domain.AnyMappingDomainType;
+import org.hibernate.metamodel.model.domain.EmbeddableDomainType;
 import org.hibernate.metamodel.model.domain.EntityDomainType;
 import org.hibernate.metamodel.model.domain.IdentifiableDomainType;
 import org.hibernate.metamodel.model.domain.JpaMetamodel;
@@ -2036,26 +2037,24 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		//have to do this here because visiting the from-elements needs it
 		currentQuerySpec().setFromClause( fromClause );
 
-		if ( creationOptions.useStrictJpaCompliance() && roots.size() > 1 ) {
-			// for multiple roots, JPA says that the secondary roots should be
-			// treated with semantics effectively akin to CROSS joins
-			// (specifically in regard to alias scoping and join ordering).
-			final var sqmRoot = visitEntityWithJoins( roots.get( 0 ) );
-			fromClause.addRoot( sqmRoot );
-
-			for ( int i = 1; i < roots.size(); i++ ) {
-				final var secondaryRoot = roots.get( i );
-				handleRootAsCrossJoin( secondaryRoot, sqmRoot, this );
-			}
-		}
-		else {
-			for ( var root : roots ) {
-				final var sqmRoot = visitEntityWithJoins( root );
-				// Correlations are implicitly added to the from-clause
-				if ( !( sqmRoot instanceof SqmCorrelation<?, ?> ) ) {
-					fromClause.addRoot( sqmRoot );
+		SqmFrom<?, ?> primaryFrom = null;
+		for ( var root : roots ) {
+			final var sqmFrom = (SqmFrom<?, ?>) root.fromRoot().accept( this );
+			// A correlated path is a join on a correlation already registered in the from clause.
+			if ( sqmFrom instanceof SqmRoot<?> sqmRoot ) {
+				if ( primaryFrom != null && creationOptions.useStrictJpaCompliance() ) {
+					// JPA treats secondary roots as cross joins for alias scoping and join ordering.
+					handleRootAsCrossJoin( primaryFrom, sqmRoot, this );
+					consumeJoins( root, primaryFrom );
+					continue;
 				}
+				// A join may introduce a correlation. Keep the root before it in the FROM clause.
+				fromClause.addRoot( sqmRoot );
 			}
+			if ( primaryFrom == null ) {
+				primaryFrom = sqmFrom;
+			}
+			consumeJoins( root, sqmFrom );
 		}
 
 		return fromClause;
@@ -2063,26 +2062,35 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 
 	@Override
 	public SqmRoot<?> visitEntityWithJoins(HqlParser.EntityWithJoinsContext parserSpace) {
-		final var sqmRoot = (SqmRoot<?>) parserSpace.fromRoot().accept( this );
+		final var sqmFrom = (SqmFrom<?, ?>) parserSpace.fromRoot().accept( this );
+		consumeJoins( parserSpace, sqmFrom );
+		return sqmFrom.findRoot();
+	}
+
+	private void consumeJoins(HqlParser.EntityWithJoinsContext parserSpace, SqmFrom<?, ?> sqmFrom) {
 		final int size = parserSpace.getChildCount();
 		for ( int i = 1; i < size; i++ ) {
 			final var parseTree = parserSpace.getChild( i );
 			if ( parseTree instanceof HqlParser.CrossJoinContext crossJoinContext ) {
-				consumeCrossJoin( crossJoinContext, sqmRoot );
+				consumeCrossJoin( crossJoinContext, sqmFrom );
 			}
 			else if ( parseTree instanceof HqlParser.JoinContext joinContext ) {
-				consumeJoin( joinContext, sqmRoot );
+				final var join = consumeJoin( joinContext, sqmFrom );
+				if ( sqmFrom.getLhs() instanceof SqmCorrelation<?, ?>
+						&& join.getLhs() instanceof SqmCorrelation<?, ?> ) {
+					// Paths of outer aliases may belong to different correlations in the SQM tree.
+					// Attach subsequent entity joins to the later path to preserve declaration order.
+					sqmFrom = join;
+				}
 			}
 			else if ( parseTree instanceof HqlParser.JpaCollectionJoinContext jpaCollectionJoinContext ) {
-				consumeJpaCollectionJoin( jpaCollectionJoinContext, sqmRoot );
+				consumeJpaCollectionJoin( jpaCollectionJoinContext, sqmFrom.findRoot() );
 			}
 		}
-
-		return sqmRoot;
 	}
 
 	@Override
-	public SqmRoot<?> visitRootEntity(HqlParser.RootEntityContext ctx) {
+	public SqmFrom<?, ?> visitRootEntity(HqlParser.RootEntityContext ctx) {
 		final var entityNameContext = ctx.entityName();
 		final String name = getEntityName( entityNameContext );
 
@@ -2090,10 +2098,9 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 
 		final String alias = extractAlias( ctx.variable() );
 
-		final var processingState = processingStateStack.getCurrent();
-		final var pathRegistry = processingState.getPathRegistry();
+		final var pathRegistry = processingStateStack.getCurrent().getPathRegistry();
 		if ( entityDescriptor == null ) {
-			return resolveRootEntity( entityNameContext, name, alias, processingState, pathRegistry );
+			return resolveRootEntity( entityNameContext, name, alias, pathRegistry );
 		}
 		checkFQNEntityNameJpaComplianceViolationIfNeeded( name, entityDescriptor );
 
@@ -2120,19 +2127,17 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		return sqmRoot;
 	}
 
-	private SqmRoot<?> resolveRootEntity(
+	private SqmFrom<?, ?> resolveRootEntity(
 			HqlParser.EntityNameContext entityNameContext,
 			String name, String alias,
-			SqmCreationProcessingState processingState,
 			SqmPathRegistry pathRegistry) {
 		final var entityNameParseTreeChildren = entityNameContext.children;
 		final int size = entityNameParseTreeChildren.size();
 		// Handle the use of a correlation path in subqueries
 		if ( processingStateStack.depth() > 1 && size > 2 ) {
 			final String parentAlias = entityNameParseTreeChildren.get( 0 ).getText();
-			final var correlation =
-					processingState.getPathRegistry().findFromByAlias( parentAlias, true );
-			if ( correlation instanceof SqmCorrelation<?, ?> sqmCorrelation ) {
+			final var correlation = pathRegistry.findFromByAlias( parentAlias, true );
+			if ( correlation instanceof SqmCorrelation<?, ?> ) {
 				final var dotIdentifierConsumer = new QualifiedJoinPathConsumer(
 						correlation,
 						SqmJoinType.INNER,
@@ -2153,7 +2158,7 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 						false,
 						true
 				);
-				return sqmCorrelation.getCorrelatedRoot();
+				return (SqmFrom<?, ?>) dotIdentifierConsumer.getConsumedPart();
 			}
 			throw new SemanticException( "Could not resolve entity or correlation path '" + name + "'", query );
 		}
@@ -2168,10 +2173,10 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 
 	@Override
 	public SqmCteStatement<?> findCteStatement(String name) {
-		if ( currentPotentialRecursiveCte != null && name.equals( currentPotentialRecursiveCte.getName() ) ) {
-			return (SqmCteStatement<?>) currentPotentialRecursiveCte;
-		}
-		return processingStateStack.findCurrentFirstWithParameter( name, SemanticQueryBuilder::matchCteStatement );
+		return currentPotentialRecursiveCte != null
+			&& name.equals( currentPotentialRecursiveCte.getName() )
+				? (SqmCteStatement<?>) currentPotentialRecursiveCte
+				: processingStateStack.findCurrentFirstWithParameter( name, SemanticQueryBuilder::matchCteStatement );
 	}
 
 	private static SqmCteStatement<?> matchCteStatement(SqmCreationProcessingState state, String n) {
@@ -2228,7 +2233,7 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		throw new UnsupportedOperationException( "Unexpected call to #visitCrossJoin, see #consumeCrossJoin" );
 	}
 
-	protected <T> void consumeCrossJoin(HqlParser.CrossJoinContext parserJoin, SqmRoot<T> sqmRoot) {
+	protected <T> void consumeCrossJoin(HqlParser.CrossJoinContext parserJoin, SqmFrom<?, T> sqmFrom) {
 		final String name = getEntityName( parserJoin.entityName() );
 
 		final var entityDescriptor = getJpaMetamodel().resolveHqlEntityReference( name );
@@ -2238,15 +2243,14 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 					query );
 		}
 		final var join = new SqmCrossJoin<>(
-				(SqmEntityDomainType<T>) entityDescriptor,
+				(SqmEntityDomainType<?>) entityDescriptor,
 				extractAlias( parserJoin.variable() ),
-				sqmRoot
+				(SqmRoot<T>) sqmFrom.findRoot()
 		);
 
 		processingStateStack.getCurrent().getPathRegistry().register( join );
 
-		// CROSS joins are always added to the root
-		sqmRoot.addSqmJoin( join );
+		sqmFrom.addSqmJoin( join );
 	}
 
 	private JpaMetamodel getJpaMetamodel() {
@@ -2258,7 +2262,8 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		throw new UnsupportedOperationException( "Unexpected call to #visitJoin, see #consumeJoin" );
 	}
 
-	protected <X> void consumeJoin(HqlParser.JoinContext parserJoin, SqmRoot<X> sqmRoot) {
+	protected <X> SqmJoin<X, ?> consumeJoin(HqlParser.JoinContext parserJoin, SqmFrom<?, X> sqmFrom) {
+		final var sqmRoot = (SqmRoot<X>) sqmFrom.findRoot();
 		final var joinType = getSqmJoinType( parserJoin.joinType() );
 		final var qualifiedJoinTargetContext = parserJoin.joinTarget();
 		final String alias = extractAlias( getVariable( qualifiedJoinTargetContext ) );
@@ -2267,6 +2272,10 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		if ( fetch && processingStateStack.depth() > 1 ) {
 			throw new SemanticException( "The 'from' clause of a subquery has a 'fetch'", query );
 		}
+		if ( fetch && ( joinType == SqmJoinType.RIGHT || joinType == SqmJoinType.FULL ) ) {
+			throw new SemanticException( "Fetch join is a " + joinType.getText()
+					+ " join (only inner and left outer joins may be fetched)", query );
+		}
 
 		final var joinRestrictionContext = parserJoin.joinRestriction();
 		// Joins are allowed to be reused if they don't have a join condition
@@ -2274,8 +2283,10 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 		dotIdentifierConsumerStack.push( new QualifiedJoinPathConsumer( sqmRoot, joinType, fetch, alias, allowReuse, this ) );
 		try {
 			final var join = getJoin( sqmRoot, joinType, qualifiedJoinTargetContext, alias, fetch );
-			if ( join instanceof SqmEntityJoin<?,?> || join instanceof SqmDerivedJoin<?> || join instanceof SqmCteJoin<?> ) {
-				sqmRoot.addSqmJoin( join );
+			// The path consumer already attaches attribute joins, including implicit unnest() joins.
+			if ( !( qualifiedJoinTargetContext instanceof HqlParser.JoinPathContext )
+					|| join instanceof SqmEntityJoin<?, ?> || join instanceof SqmCteJoin<?> ) {
+				sqmFrom.addSqmJoin( join );
 			}
 			else if ( join instanceof SqmAttributeJoin<?, ?> attributeJoin ) {
 				if ( getCreationOptions().useStrictJpaCompliance() ) {
@@ -2300,6 +2311,7 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 					dotIdentifierConsumerStack.pop();
 				}
 			}
+			return join;
 		}
 		finally {
 			dotIdentifierConsumerStack.pop();
@@ -2375,7 +2387,6 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 					(SqmRoot<Object>) sqmRoot
 			);
 			processingStateStack.getCurrent().getPathRegistry().register( join );
-			sqmRoot.addSqmJoin( (SqmJoin<X, ?>) join );
 			return (SqmJoin<X, ?>) join;
 		}
 		else {
@@ -4630,6 +4641,13 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 
 	@Override
 	public Object visitGenericFunction(HqlParser.GenericFunctionContext ctx) {
+		final var nameContext = ctx.genericFunctionName();
+		if ( getFunctionDescriptor( visitGenericFunctionName( nameContext ).toLowerCase() ) == null
+				&& isEmbeddableValuedPath( nameContext.simplePath() ) ) {
+			// not a function at all, but an embeddable pattern
+			return embeddablePattern( ctx );
+		}
+
 		final var functionTemplate = getFunctionTemplate(  ctx );
 		final var functionArguments = getFunctionArguments( ctx );
 		final var filterExpression = getFilterExpression( ctx );
@@ -4664,6 +4682,148 @@ public class SemanticQueryBuilder<R> extends HqlParserBaseVisitor<Object> implem
 			);
 		};
 		return applyOverClause( ctx.overClause(), function );
+	}
+
+	/**
+	 * Determine if the given path, which occurs in the position of a function
+	 * name, refers to something of embeddable type, without actually resolving
+	 * the path, since that could result in the creation of implicit joins.
+	 */
+	private boolean isEmbeddableValuedPath(HqlParser.SimplePathContext pathContext) {
+		final String base = visitIdentifier( pathContext.identifier() );
+		final var continuations = pathContext.simplePathElement();
+		final var fromByAlias = findFromByAlias( base );
+		if ( fromByAlias != null ) {
+			return isEmbeddableValuedPath( fromByAlias.getReferencedPathSource(), continuations );
+		}
+		else {
+			// an ambiguous unqualified attribute reference is not an error here,
+			// since this might just be a function with the same name; if it could
+			// be an embeddable, the ambiguity is reported when the path is resolved
+			final var fromsExposing =
+					processingStateStack.getCurrent().getPathRegistry()
+							.findAllFromExposing( base );
+			for ( var fromExposing : fromsExposing ) {
+				final var pathSource = findSingularSubPathSource( fromExposing.getReferencedPathSource(), base );
+				if ( isEmbeddableValuedPath( pathSource, continuations ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+
+	private boolean isEmbeddableValuedPath(
+			@Nullable SqmPathSource<?> pathSource,
+			List<HqlParser.SimplePathElementContext> continuations) {
+		for ( var continuation : continuations ) {
+			if ( pathSource == null ) {
+				return false;
+			}
+			pathSource = findSingularSubPathSource( pathSource, visitIdentifier( continuation.identifier() ) );
+		}
+		return pathSource != null
+			&& pathSource.getPathType() instanceof EmbeddableDomainType;
+	}
+
+	/**
+	 * Find a from element with the given alias in the current query or in
+	 * a parent query, but without creating a correlation.
+	 */
+	private @Nullable SqmFrom<?, ?> findFromByAlias(String alias) {
+		for ( var processingState = processingStateStack.getCurrent();
+				processingState != null;
+				processingState = processingState.getParentProcessingState() ) {
+			final SqmFrom<?, ?> from =
+					processingState.getPathRegistry()
+							.findFromByAlias( alias, false );
+			if ( from != null ) {
+				return from;
+			}
+		}
+		return null;
+	}
+
+	private static @Nullable SqmPathSource<?> findSingularSubPathSource(SqmPathSource<?> pathSource, String name) {
+		if ( pathSource.getPathType() instanceof ManagedDomainType ) {
+			final var subPathSource = pathSource.findSubPathSource( name, true );
+			return subPathSource instanceof PluralPersistentAttribute ? null : subPathSource;
+		}
+		else {
+			return null;
+		}
+	}
+
+	/**
+	 * An <em>embeddable pattern</em> like {@code address(street, city, zip)}
+	 * destructures an embeddable-valued path to a tuple of its attributes,
+	 * here {@code (address.street, address.city, address.zip)}.
+	 * <p>
+	 * Syntactically, this is indistinguishable from a function invocation.
+	 */
+	private SqmExpression<?> embeddablePattern(HqlParser.GenericFunctionContext ctx) {
+		if ( creationOptions.useStrictJpaCompliance() ) {
+			throw new StrictJpaComplianceViolation(
+					StrictJpaComplianceViolation.Type.TUPLES
+			);
+		}
+		final var pathContext = ctx.genericFunctionName().simplePath();
+		final var argumentsContext = ctx.genericFunctionArguments();
+		if ( argumentsContext == null
+				|| argumentsContext.DISTINCT() != null
+				|| ctx.nthSideClause() != null
+				|| ctx.nullsClause() != null
+				|| ctx.withinGroupClause() != null
+				|| ctx.filterClause() != null
+				|| ctx.overClause() != null ) {
+			throw illegalEmbeddablePattern( pathContext );
+		}
+		final var embeddablePath = consumeDomainPath( pathContext );
+		final var argumentContexts = argumentsContext.expressionOrPredicate();
+		final List<SqmExpression<?>> attributePaths = new ArrayList<>( argumentContexts.size() + 1 );
+		final var datetimeFieldContext = argumentsContext.datetimeField();
+		if ( datetimeFieldContext != null ) {
+			// an attribute which happens to have the same name as a datetime field
+			attributePaths.add( resolveAttribute( embeddablePath, datetimeFieldContext.getText() ) );
+		}
+		for ( var argumentContext : argumentContexts ) {
+			final var attributeName = attributeName( argumentContext );
+			if ( attributeName == null ) {
+				throw illegalEmbeddablePattern( pathContext );
+			}
+			attributePaths.add( resolveAttribute( embeddablePath, attributeName ) );
+		}
+		// just as (x) is not a tuple, a pattern with a single attribute is not a tuple
+		return attributePaths.size() == 1
+				? attributePaths.get( 0 )
+				: new SqmTuple<>( attributePaths, nodeBuilder() );
+	}
+
+	private SqmExpression<?> resolveAttribute(SqmPath<?> embeddablePath, String attributeName) {
+		return (SqmExpression<?>) embeddablePath.resolvePathPart( attributeName, true, this );
+	}
+
+	/**
+	 * If the given argument is syntactically just an identifier, return it.
+	 */
+	private @Nullable String attributeName(HqlParser.ExpressionOrPredicateContext argumentContext) {
+		if ( argumentContext.expression() instanceof HqlParser.BarePrimaryExpressionContext expressionContext
+				&& expressionContext.primaryExpression() instanceof HqlParser.GeneralPathExpressionContext generalPathContext ) {
+			final var fragmentContext = generalPathContext.generalPathFragment();
+			final var simplePathContext = fragmentContext.simplePath();
+			if ( fragmentContext.indexedPathAccessFragment() == null
+					&& simplePathContext.simplePathElement().isEmpty() ) {
+				return visitIdentifier( simplePathContext.identifier() );
+			}
+		}
+		return null;
+	}
+
+	private SemanticException illegalEmbeddablePattern(HqlParser.SimplePathContext pathContext) {
+		final String path = pathContext.getText();
+		return new SemanticException( "Path '" + path + "' is of embeddable type, and so '"
+				+ path + "(...)' must be a list of names of attributes of the embeddable",
+				query );
 	}
 
 	private SqmFunctionDescriptor getFunctionTemplate(HqlParser.GenericFunctionContext ctx) {

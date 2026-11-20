@@ -10,6 +10,8 @@ import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.H2Dialect;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.dialect.SQLServerDialect;
+import org.hibernate.dialect.SpannerDialect;
+import org.hibernate.dialect.SpannerPostgreSQLDialect;
 import org.hibernate.dialect.temporaltype.spi.CurrentTimestampSelection;
 import org.hibernate.dialect.temporaltype.spi.CurrentTemporalSupport;
 import org.hibernate.dialect.temporaltype.spi.CurrentTemporalSupports;
@@ -20,6 +22,7 @@ import org.hibernate.dialect.temporaltype.spi.TemporalFormatSupports;
 import org.hibernate.dialect.temporaltype.spi.TemporalOperationSupports;
 import org.hibernate.dialect.temporaltype.spi.TemporalValueSemantics;
 import org.hibernate.query.common.TemporalUnit;
+import org.hibernate.sql.spi.StringBuilderDialectSqlAppender;
 import org.hibernate.sql.spi.StringBuilderSqlAppender;
 import org.junit.jupiter.api.Test;
 
@@ -35,6 +38,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 ///
 /// @author Steve Ebersole
 public class TemporalTypeSupportTests {
+	@Test
+	void spannerTimestampsAreNotTransactionStable() {
+		assertFalse( new SpannerDialect().getCurrentTemporalSupport().isCurrentTimestampStable() );
+		assertFalse( new SpannerPostgreSQLDialect().getCurrentTemporalSupport().isCurrentTimestampStable() );
+		assertTrue( new PostgreSQLDialect().getCurrentTemporalSupport().isCurrentTimestampStable() );
+	}
+
 	@Test
 	void standardSuppliesAreStable() {
 		final var dialect = new Dialect( DatabaseVersion.make( 1 ) ) {};
@@ -113,7 +123,7 @@ public class TemporalTypeSupportTests {
 	@Test
 	void standardFormatAndOperationBehaviorIsPreserved() {
 		final var dialect = new Dialect( DatabaseVersion.make( 1 ) ) {};
-		final var appender = new StringBuilderSqlAppender();
+		final var appender = new StringBuilderDialectSqlAppender( dialect );
 		dialect.getTemporalFormatSupport().appendFormat( appender, "yyyy-MM-dd" );
 		assertEquals( "YYYY-MM-DD", appender.toString() );
 		assertEquals( "extract(?1 from ?2)", dialect.getTemporalOperationSupport().extractPattern( TemporalUnit.DAY ) );

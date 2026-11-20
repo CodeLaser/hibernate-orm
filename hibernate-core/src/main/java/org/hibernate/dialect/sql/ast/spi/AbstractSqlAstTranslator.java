@@ -13,6 +13,7 @@ import org.hibernate.Locking;
 import org.hibernate.SPI;
 import org.hibernate.Timeouts;
 import org.hibernate.sql.ast.spi.query.SqlAstTreeHelper;
+import org.hibernate.sql.spi.StringBuilderDialectSqlAppender;
 import org.hibernate.temporal.TemporalTableStrategy;
 import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.array.spi.ArraySupport;
@@ -206,7 +207,6 @@ import org.hibernate.sql.spi.mutation.MutationOperation;
 import org.hibernate.sql.spi.mutation.MutationTarget;
 import org.hibernate.sql.spi.ParameterMarkerStrategy;
 import org.hibernate.sql.spi.SqlAppender;
-import org.hibernate.sql.spi.StringBuilderSqlAppender;
 import org.hibernate.sql.ast.spi.model.ColumnValueBinding;
 import org.hibernate.sql.ast.spi.model.TenantIdColumnValueBinding;
 import org.hibernate.sql.ast.spi.model.ColumnValueParameter;
@@ -528,7 +528,7 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 	/// the mutable main SQL buffer.
 	protected final void renderStatementPrefix(Consumer<SqlAppender> renderer) {
 		final var prefixBuffer = new StringBuilder();
-		renderer.accept( new StringBuilderSqlAppender( prefixBuffer ) );
+		renderer.accept( new StringBuilderDialectSqlAppender( getDialect(), prefixBuffer ) );
 		sqlBuffer.insert( 0, prefixBuffer );
 	}
 
@@ -626,6 +626,16 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 	@Override
 	public void appendSingleQuoteEscapedString(String value) {
 		QuotingHelper.appendSingleQuoteEscapedString( sqlBuffer, value );
+	}
+
+	@Override
+	public void appendLiteral(String value) {
+		dialect.getLiteralSupport().appendLiteral( this, value );
+	}
+
+	@Override
+	public void appendLiteralContent(String value) {
+		dialect.getLiteralSupport().appendLiteralContent( this, value );
 	}
 
 	@Override
@@ -6856,7 +6866,7 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 		}
 	}
 
-	private String renderFromClauseRoot(TableGroup root, String separator) {
+	protected String renderFromClauseRoot(TableGroup root, String separator) {
 		if ( root.isVirtual() ) {
 			for ( TableGroupJoin tableGroupJoin : root.getTableGroupJoins() ) {
 				addAdditionalWherePredicate( tableGroupJoin.getPredicate() );
@@ -9301,6 +9311,25 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 
 	@Override
 	public void visitBetweenPredicate(BetweenPredicate betweenPredicate) {
+		final var tuple = getSqlTuple( betweenPredicate.getExpression() );
+		if ( tuple != null && tuple.getExpressions().size() > 1
+				&& !dialect.getRowValueSupport().supports( ORDERING_COMPARISON ) ) {
+			// Use the existing lexicographic tuple comparison emulation, including
+			// ordinary SQL null semantics, on databases without row ordering syntax.
+			final boolean negated = betweenPredicate.isNegated();
+			appendSql( OPEN_PARENTHESIS );
+			visitRelationalPredicate( new ComparisonPredicate(
+					betweenPredicate.getExpression(),
+					negated ? ComparisonOperator.LESS_THAN : ComparisonOperator.GREATER_THAN_OR_EQUAL,
+					betweenPredicate.getLowerBound() ) );
+			appendSql( negated ? " or " : " and " );
+			visitRelationalPredicate( new ComparisonPredicate(
+					betweenPredicate.getExpression(),
+					negated ? ComparisonOperator.GREATER_THAN : ComparisonOperator.LESS_THAN_OR_EQUAL,
+					betweenPredicate.getUpperBound() ) );
+			appendSql( CLOSE_PARENTHESIS );
+			return;
+		}
 		betweenPredicate.getExpression().accept( this );
 		if ( betweenPredicate.isNegated() ) {
 			appendSql( " not" );
@@ -9326,6 +9355,7 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 
 	@Override
 	public void visitFilterFragmentPredicate(FilterFragmentPredicate filter) {
+		appendSql( OPEN_PARENTHESIS );
 		// process a specific filter
 		final String sqlFragment = filter.getSqlFragment();
 		if ( filter.getParameters() == null ) {
@@ -9341,6 +9371,7 @@ public abstract class AbstractSqlAstTranslator<T extends JdbcOperation> implemen
 				appendSql( sqlFragment.substring( lastEnd ) );
 			}
 		}
+		appendSql( CLOSE_PARENTHESIS );
 	}
 
 	private int processFilterParameter(FilterFragmentParameter parameter, String sqlFragment, int startPosition) {

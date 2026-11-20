@@ -165,16 +165,38 @@ public final class QuotingHelper {
 		return sb.toString();
 	}
 
+	/**
+	 * Append the given name as a quoted HQL identifier.
+	 */
+	public static void appendQuotedIdentifier(StringBuilder sb, String name) {
+		sb.append( '`' );
+		for ( int i = 0; i < name.length(); i++ ) {
+			final char c = name.charAt( i );
+			if ( c == '`' || c == '\\' ) {
+				sb.append( '\\' );
+			}
+			sb.append( c );
+		}
+		sb.append( '`' );
+	}
+
 	public static void appendDoubleQuoteEscapedString(StringBuilder sb, String text) {
+		sb.append( '"' );
 		appendWithDoubleEscaping( sb, text, '"' );
+		sb.append( '"' );
 	}
 
 	public static void appendSingleQuoteEscapedString(StringBuilder sb, String text) {
+		sb.append( '\'' );
+		appendWithDoubleEscaping( sb, text, '\'' );
+		sb.append( '\'' );
+	}
+
+	public static void appendSingleQuoteEscapedStringContent(StringBuilder sb, String text) {
 		appendWithDoubleEscaping( sb, text, '\'' );
 	}
 
 	private static void appendWithDoubleEscaping(StringBuilder sb, String text, char quoteChar) {
-		sb.append( quoteChar );
 		for ( int i = 0; i < text.length(); i++ ) {
 			final char c = text.charAt( i );
 			if ( c == quoteChar ) {
@@ -182,7 +204,6 @@ public final class QuotingHelper {
 			}
 			sb.append( c );
 		}
-		sb.append( quoteChar );
 	}
 
 }
